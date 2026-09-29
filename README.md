@@ -5,16 +5,17 @@ An independent family dashboard for selected NSE companies. The Next.js UI uses 
 ## Current deployment state
 
 - Supabase tables and owner `hpatil1704@gmail.com` exist in project `pnbqofhyczvpjxpstrin`.
-- `sd-monitor` Edge Function is deployed, but the one-minute job is **paused**. NSE RSS fetches failed from Supabase's edge network (HTTP/2 stream error; HTTP/1 timeout). Do not enable alerts until a feed fetch from the final runtime succeeds.
-- The Vercel CLI in this workspace is not authenticated, and the connected Vercel deploy action is unavailable. This code is build verified locally but **not deployed** to a public Vercel URL.
+- The website is deployed at `https://signaldesk-nse-watch.vercel.app/` from the private `harsh200539/signaldesk-nse-watch` GitHub repository.
+- `sd-monitor` is scheduled every minute through Supabase Cron. NSE RSS fetches failed from Supabase's edge network, so the worker requests the four fixed feeds through the Vercel Node route. On the first end-to-end check, 3/4 feeds succeeded with 19 current items. The board meeting feed returned zero items. Monitor the dashboard health timestamp and status.
+- Supabase Auth must allowlist `https://signaldesk-nse-watch.vercel.app/**` for email magic links. This setting requires Supabase dashboard access; sign-in has not yet been tested end to end.
 - Groq, Telegram, and Resend keys have not been supplied. Document analysis and outbound alerts are inactive.
 
 ## Deploy and configure
 
-1. Sign into Vercel and deploy this directory as a Next.js project. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from `.env.example` in Vercel project settings. Do not place backend secrets in `NEXT_PUBLIC_` variables.
-2. Add the final Vercel URL to the Supabase Auth redirect URL allowlist for project `pnbqofhyczvpjxpstrin`. Email sign-in links must redirect to that URL.
+1. The Vercel project already has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Do not place backend secrets in `NEXT_PUBLIC_` variables.
+2. Add `https://signaldesk-nse-watch.vercel.app/**` to Supabase Auth redirect URLs for project `pnbqofhyczvpjxpstrin`. Email sign-in links must redirect to that URL.
 3. Add `GROQ_API_KEY`, `TELEGRAM_BOT_TOKEN`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` to the Supabase `sd-monitor` Edge Function secrets. Verify the Resend sender domain and start the Telegram bot before enabling outbound delivery.
-4. Set `public.sd_config` key `feed_proxy_base` to the final Vercel origin. The worker uses Vercel's fixed allowlist proxy for public NSE RSS. Test all four feeds through this path, add a company, verify a matched filing, verify PDF/XML evidence extraction, and test one email and one Telegram delivery. Only then reschedule `sd-monitor-every-minute` in Supabase Cron using the existing Vault settings.
+4. `public.sd_config` has `feed_proxy_base` set to the Vercel origin and the one-minute schedule is active. Add a company, verify a matched filing, verify PDF/XML evidence extraction, and test one email and one Telegram delivery before relying on alerts.
 5. Invite your father by email from the dashboard. He signs in with his own magic link; no ChatGPT login is involved.
 
 The source feed is a polling feed. It does not provide licensed exchange tick prices or guaranteed instant publication. Each filing displays its original NSE link, published timestamp, evidence scope, and feed health. Groq's notes are research summaries, not personalized investment recommendations.
