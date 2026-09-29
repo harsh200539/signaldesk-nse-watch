@@ -1,7 +1,8 @@
 import {setDefaultResultOrder} from "node:dns";
 import {FEEDS} from "../../../lib/market";
 export const runtime="nodejs";
-export async function GET(){
+export async function GET(request:Request){
+  if(new URL(request.url).search)return new Response("Invalid request",{status:400});
   setDefaultResultOrder("ipv4first");
   const results=await Promise.all(FEEDS.map(async source=>{
     try{
@@ -11,5 +12,5 @@ export async function GET(){
       return {category:source.category,ok:xml.includes("<item"),items:(xml.match(/<item(?:\s[^>]*)?>/gi)||[]).length};
     }catch(error){return {category:source.category,ok:false,error:String(error).slice(0,150)}}
   }));
-  return Response.json({checkedAt:new Date().toISOString(),results},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({checkedAt:new Date().toISOString(),results},{headers:{"Cache-Control":"public, s-maxage=60, stale-while-revalidate=60"}});
 }
