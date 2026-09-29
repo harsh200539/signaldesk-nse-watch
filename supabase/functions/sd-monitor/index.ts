@@ -75,20 +75,17 @@ async function sendAlerts(f:Filing,note:Record<string,string>|null){
 }
 async function scan(){
   const {data:watch,error:watchError}=await admin.from("sd_watchlist").select("symbol,name");if(watchError)throw watchError;
-  const {data:proxyConfig}=await admin.from("sd_config").select("key,value").in("key",["feed_proxy_base","cron_token"]);
+  const {data:proxyConfig}=await admin.from("sd_config").select("key,value").eq("key","feed_proxy_base");
   const proxyBase=proxyConfig?.find(x=>x.key==="feed_proxy_base")?.value;
-  const proxyToken=proxyConfig?.find(x=>x.key==="cron_token")?.value;
   const results=await Promise.all(feeds.map(async([category,feedUrl],index)=>{
     try{
       let r:Response;
-      try{r=await fetch(feedUrl,{signal:AbortSignal.timeout(12000),client:nseClient});if(!r.ok)throw Error(`HTTP ${r.status}`)}
-      catch(directError){
-        if(!proxyBase||!proxyToken)throw directError;
+      if(proxyBase){
         const base=new URL(proxyBase);
         if(base.protocol!=="https:")throw Error("Feed proxy URL must use HTTPS");
-        r=await fetch(new URL(`/api/nse-feed?feed=${index}`,base),{headers:{"x-sd-feed-token":proxyToken},signal:AbortSignal.timeout(18000)});
+        r=await fetch(new URL(`/api/nse-feed?feed=${index}`,base),{signal:AbortSignal.timeout(18000)});
         if(!r.ok)throw Error(`Vercel feed proxy HTTP ${r.status}`);
-      }
+      }else{r=await fetch(feedUrl,{signal:AbortSignal.timeout(12000),client:nseClient});if(!r.ok)throw Error(`HTTP ${r.status}`)}
       const xml=await r.text(),items=[...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].slice(0,1600);
       if(!items.length)throw Error("Empty feed");return {category,items,ok:true};
     }catch(e){return {category,items:[] as RegExpMatchArray[],ok:false,error:String(e)}}
